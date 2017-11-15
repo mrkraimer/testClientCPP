@@ -23,9 +23,9 @@ using namespace epics::pvaClient;
 static ConvertPtr convert = getConvert();
 
 
-static void exampleDouble(PvaClientPtr const &pva,string const & channelName,string const & providerName)
+static void testDouble(PvaClientPtr const &pva,string const & channelName,string const & providerName)
 {
-    cout << "__exampleDouble__ channelName " << channelName << " providerName " << providerName << endl;
+    cout << "__testDouble__ channelName " << channelName << " providerName " << providerName << endl;
     PvaClientChannelPtr channel = pva->channel(channelName,providerName,2.0);
     PvaClientPutPtr put = channel->put();
     PvaClientPutDataPtr putData = put->getData();
@@ -50,9 +50,9 @@ int main(int argc,char *argv[])
     cout << "_____examplePvaClientPut starting_______\n";
     try {
         PvaClientPtr pva = PvaClient::get("pva ca");
-        for (int i=0; i<10; ++i)
+        for (int i=0; i<100; ++i)
         {
-            exampleDouble(pva,"PVRdouble","pva");
+            testDouble(pva,"PVRdouble","pva");
         }
         cout << "_____examplePvaClientPut done_______\n";
     } catch (std::runtime_error e) {
