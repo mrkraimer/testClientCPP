@@ -22,6 +22,10 @@ PROD_HOST += testPvaClientPut
 testPvaClientPut_SRCS += testPvaClientPut.cpp
 testPvaClientPut_LIBS += pvaClient pvAccess pvData ca Com
 
+PROD_HOST += monitorme
+monitorme_SRCS += monitorme.cpp
+monitorme_LIBS += pvaClient pvAccess pvAccessCA pvData ca Com
+
 #===========================
 
 include $(TOP)/configure/RULES
