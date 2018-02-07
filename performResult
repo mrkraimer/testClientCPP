@@ -1,0 +1,101 @@
+bin/linux-x86_64/monitorrate -p pva FAST1
+average events/second 70502.6
+average events/second 72037.3
+average events/second 70268.2
+average events/second 67601.7
+bin/linux-x86_64/monitorrate -p ca FAST1
+average events/second 79858.3
+average events/second 80433.2
+average events/second 77318.8
+average events/second 79268.6
+bin/linux-x86_64/monitormerate -p pva FAST1
+average events/second 43710.7
+average events/second 42628.8
+average events/second 41455
+average events/second 41348.6
+bin/linux-x86_64/monitormerate -p ca FAST1
+average events/second 33501.3
+average events/second 28893.4
+average events/second 28895.6
+average events/second 27220.8
+
+bin/linux-x86_64/monitorrate -p pva FAST1 FAST2
+total events/second 65418.7
+total events/second 61647.7
+total events/second 60547.3
+total events/second 58593.2
+bin/linux-x86_64/monitorrate -p ca FAST1 FAST2
+total events/second 89607.3
+total events/second 84560.2
+total events/second 86530.2
+total events/second 83211.7
+bin/linux-x86_64/monitormerate -p pva FAST1 FAST2
+total events/second 47899.8
+total events/second 45702.8
+total events/second 44925.7
+total events/second 45888.7
+bin/linux-x86_64/monitormerate -p ca FAST1 FAST2
+total events/second 29041
+total events/second 27962.7
+total events/second 27778.1
+total events/second 27688.7
+
+bin/linux-x86_64/monitorrate -p pva FAST1 FAST2 FAST3
+total events/second 61840.1
+total events/second 59897.9
+total events/second 58096.8
+total events/second 57817.3
+bin/linux-x86_64/monitorrate -p ca FAST1 FAST2 FAST3
+total events/second 93822.9
+total events/second 90249.8
+total events/second 91049.3
+total events/second 93078.2
+bin/linux-x86_64/monitormerate -p pva FAST1 FAST2 FAST3
+total events/second 50770.3
+total events/second 47317.1
+total events/second 44975.4
+total events/second 44949.7
+bin/linux-x86_64/monitormerate -p ca FAST1 FAST2 FAST3
+total events/second 22597
+total events/second 21806.3
+total events/second 21913.2
+total events/second 20985.2
+
+bin/linux-x86_64/monitorrate -p pva FAST1 FAST2 FAST3 FAST4
+total events/second 62176.7
+total events/second 59873.1
+total events/second 58496.9
+total events/second 57810.5
+bin/linux-x86_64/monitorrate -p ca FAST1 FAST2 FAST3 FAST4
+total events/second 103698
+total events/second 98434.9
+total events/second 95726.9
+total events/second 98604.9
+bin/linux-x86_64/monitormerate -p pva FAST1 FAST2 FAST3 FAST4
+total events/second 49047.5
+total events/second 42204.8
+total events/second 39719.2
+total events/second 38465.1
+bin/linux-x86_64/monitormerate -p ca FAST1 FAST2 FAST3 FAST4
+total events/second 17263
+total events/second 16224.4
+total events/second 16506.3
+total events/second 16445.3
+
+
+With both monitorrate and monitorrateme running at the same time
+bin/linux-x86_64/monitorrate -p pva FAST1 FAST2 FAST3 FAST4
+total events/second 39695.4
+bin/linux-x86_64/monitormerate -p pva FAST1 FAST2 FAST3 FAST4
+total events/second 31522.7
+bin/linux-x86_64/monitorrate -p ca FAST1 FAST2 FAST3 FAST4
+total events/second 61783
+bin/linux-x86_64/monitormerate -p ca  FAST1 FAST2 FAST3 FAST4
+total events/second 13331.8
+
+
+
+
+
+
+
