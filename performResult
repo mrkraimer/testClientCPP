@@ -1,23 +1,23 @@
 bin/linux-x86_64/monitorrate -p pva FAST1
-average events/second 70502.6
-average events/second 72037.3
-average events/second 70268.2
-average events/second 67601.7
+total events/second 70502.6
+total events/second 72037.3
+total events/second 70268.2
+total events/second 67601.7
 bin/linux-x86_64/monitorrate -p ca FAST1
-average events/second 79858.3
-average events/second 80433.2
-average events/second 77318.8
-average events/second 79268.6
+total events/second 79858.3
+total events/second 80433.2
+total events/second 77318.8
+total events/second 79268.6
 bin/linux-x86_64/monitormerate -p pva FAST1
-average events/second 43710.7
-average events/second 42628.8
-average events/second 41455
-average events/second 41348.6
+total events/second 43710.7
+total events/second 42628.8
+total events/second 41455
+total events/second 41348.6
 bin/linux-x86_64/monitormerate -p ca FAST1
-average events/second 33501.3
-average events/second 28893.4
-average events/second 28895.6
-average events/second 27220.8
+total events/second 33501.3
+total events/second 28893.4
+total events/second 28895.6
+total events/second 27220.8
 
 bin/linux-x86_64/monitorrate -p pva FAST1 FAST2
 total events/second 65418.7
