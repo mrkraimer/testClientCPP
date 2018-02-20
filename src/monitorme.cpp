@@ -39,15 +39,19 @@ struct MonTracker : public pvac::ClientChannel::MonitorCallback,
 {
     POINTER_DEFINITIONS(MonTracker);
 
-    MonTracker(const std::string& name)
+    MonTracker(const std::string& name,const bool printValue)
    :name(name),
+    printValue(printValue),
     numMonitor(0)
     {
          timeStampLast.getCurrent();
     }
-    virtual ~MonTracker() {mon.cancel();}
+    virtual ~MonTracker() {
+          mon.cancel();
+    }
 
     const std::string name;
+    bool printValue;
     pvac::Monitor mon;
     volatile long numMonitor;
     TimeStamp timeStamp;
@@ -78,12 +82,10 @@ struct MonTracker : public pvac::ClientChannel::MonitorCallback,
                 for(n=0; n<2 && mon.poll(); n++)
                 {
                     pvd::PVField::const_shared_pointer fld(mon.root->getSubField("value"));
-                    if(!fld)
-                        fld = mon.root;
-
-                    std::cout<<"Event "<<name<<" "<<fld
-                        <<" Changed:"<<mon.changed
-                        <<" overrun:"<<mon.overrun<<"\n";
+                    if(!fld) fld = mon.root;
+                    std::cout<<"Event "<<name;
+                    if(printValue) std::cout<<fld;
+                    std::cout <<" Changed:"<<mon.changed <<" overrun:"<<mon.overrun<<"\n";
                 }
             }
         }
@@ -94,19 +96,18 @@ struct MonTracker : public pvac::ClientChannel::MonitorCallback,
 } // namespace
 
 int main(int argc, char *argv[]) {
+    pva::ca::CAClientFactory::start();
     try {
-        epics::RefMonitor refmon;
         std::string providerName("pva"),
-                    requestStr("field()");
+                    requestStr("value,alarm,timeStamp");
+        bool printValue(true);
         typedef std::vector<std::string> pvs_t;
         pvs_t pvs;
 
         int opt;
-        while((opt = getopt(argc, argv, "hRp:w:r:")) != -1) {
+        std::string optString;
+        while((opt = getopt(argc, argv, "hp:w:r:v:")) != -1) {
             switch(opt) {
-            case 'R':
-                refmon.start(5.0);
-                break;
             case 'p':
                 providerName = optarg;
                 break;
@@ -114,8 +115,15 @@ int main(int argc, char *argv[]) {
                 requestStr = optarg;
                 break;
             case 'h':
-                std::cout<<"Usage: "<<argv[0]<<" [-p <provider>] [-w <timeout>] [-r <request>] [-R] <pvname> ...\n";
+                std::cout<<"Usage: "<<argv[0]
+                <<" [-p <provider>] [-w <timeout>] [-r <request>] "
+                << " [-v <printValue>] "
+                << " [-R] <pvname> ...\n";
                 return 0;
+            case 'v' :
+               optString =  optarg;
+               if(optString=="false") printValue = false;
+               break;
             default:
                 std::cerr<<"Unknown argument: "<<opt<<"\n";
                 return -1;
@@ -132,10 +140,7 @@ int main(int argc, char *argv[]) {
         pva::Configuration::shared_pointer conf(pva::ConfigurationBuilder()
                                                 .push_env()
                                                 .build());
-
-        // "pva" provider automatically in registry
-        // add "ca" provider to registry
-        pva::ca::CAClientFactory::start();
+        
 
         std::cout<<"Use provider: "<<providerName<<"\n";
         pvac::ClientProvider provider(providerName, conf);
@@ -145,7 +150,7 @@ int main(int argc, char *argv[]) {
         for(pvs_t::const_iterator it=pvs.begin(); it!=pvs.end(); ++it) {
             const std::string& pv = *it;
 
-            MonTracker::shared_pointer mon(new MonTracker(pv));
+            MonTracker::shared_pointer mon(new MonTracker(pv,printValue));
 
             pvac::ClientChannel chan(provider.connect(pv));
 
@@ -153,21 +158,9 @@ int main(int argc, char *argv[]) {
 
             monitors.push_back(mon);
         }
-        int ret = 0;
         string str;
         getline(cin,str);
-cout << "after getline\n";
-        if(refmon.running()) {
-            refmon.stop();
-            // drop refs to operations, but keep ref to ClientProvider
-            monitors.clear();
-            // show final counts
-            refmon.current();
-        }
-cout << "calling monitors.clear\n";
-monitors.clear();
-cout << "returning\n";
-        return ret;
+        return 0;
     } catch(std::exception& e){
         std::cout<<"Error: "<<e.what()<<"\n";
         return 2;

@@ -140,10 +140,6 @@ public:
         timeStampLast.getCurrent();
         double persecond = 0;
         if(diff>0.0) persecond = numnow/diff;
-        cout << channelName
-        << " numnow " << numnow
-        << " persecond " << persecond
-        << endl;
         return persecond;
     }
 

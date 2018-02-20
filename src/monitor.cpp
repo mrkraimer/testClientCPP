@@ -30,6 +30,7 @@ private:
     string channelName;
     string providerName;
     string request;
+    bool printValue;
     bool channelConnected;
     bool monitorConnected;
     bool isStarted;
@@ -50,10 +51,12 @@ public:
     ClientMonitor(
         const string &channelName,
         const string &providerName,
-        const string &request)
+        const string &request,
+        const bool printValue)
     : channelName(channelName),
       providerName(providerName),
       request(request),
+      printValue(printValue),
       channelConnected(false),
       monitorConnected(false),
       isStarted(false)
@@ -64,10 +67,11 @@ public:
         PvaClientPtr const &pvaClient,
         const string & channelName,
         const string & providerName,
-        const string  & request)
+        const string  & request,
+        const bool printValue)
     {
         ClientMonitorPtr client(ClientMonitorPtr(
-             new ClientMonitor(channelName,providerName,request)));
+             new ClientMonitor(channelName,providerName,request,printValue)));
         client->init(pvaClient);
         return client;
     }
@@ -106,9 +110,9 @@ public:
             PvaClientMonitorDataPtr monitorData = monitor->getData();
              std::cout<<"Event "<< channelName
                         <<" Changed:" << *monitorData->getChangedBitSet()
-                       <<" overrun:"<< *monitorData->getOverrunBitSet()
-                       << " value " << monitorData->getValue()
-                       << std::endl;
+                       <<" overrun:"<< *monitorData->getOverrunBitSet();
+             if(printValue)  std::cout << " value " << monitorData->getValue();
+             std::cout << std::endl;
             monitor->releaseEvent();
         }
     }
@@ -144,10 +148,11 @@ int main(int argc,char *argv[])
     string provider("pva");
     string channelName("PVRdouble");
     string request("value,alarm,timeStamp");
-    string debugString;
+    string optString;
     bool debug(false);
+    bool printValue(true);
     int opt;
-    while((opt = getopt(argc, argv, "hp:r:d:")) != -1) {
+    while((opt = getopt(argc, argv, "hp:r:d:v:")) != -1) {
         switch(opt) {
             case 'p':
                 provider = optarg;
@@ -156,17 +161,22 @@ int main(int argc,char *argv[])
                 request = optarg;
                 break;
             case 'h':
-             cout << " -h -p provider -r request - d debug channelNames " << endl;
+             cout << " -h -p provider -r request - d debug -v printValue channelNames " << endl;
              cout << "default" << endl;
              cout << "-p " << provider 
                   << " -r " << request
                   << " -d " << (debug ? "true" : "false")
+                  << " -v " << (printValue ? "true" : "false")
                   << " " <<  channelName
                   << endl;           
                 return 0;
             case 'd' :
-               debugString =  optarg;
-               if(debugString=="true") debug = true;
+               optString =  optarg;
+               if(optString=="true") debug = true;
+               break;
+           case 'v' :
+               optString =  optarg;
+               if(optString=="false") printValue = false;
                break;
             default:
                 std::cerr<<"Unknown argument: "<<opt<<"\n";
@@ -182,7 +192,9 @@ int main(int argc,char *argv[])
     cout << "provider " << provider
          << " channelName " <<  channelName
          << " request " << request
-         << " debug " << (debug ? "true" : "false") << endl;
+         << " debug " << (debug ? "true" : "false")
+         << " printValue " << (printValue ? "true" : "false")
+         << endl;
 
     cout << "_____monitor starting__\n";
     
@@ -200,7 +212,7 @@ int main(int argc,char *argv[])
         }
         PvaClientPtr pva= PvaClient::get(provider);
         for(int i=0; i<nPvs; ++i) {
-            ClientMonitors.push_back(ClientMonitor::create(pva,channelNames[i],provider,request));
+            ClientMonitors.push_back(ClientMonitor::create(pva,channelNames[i],provider,request,printValue));
         }
         while(true) {
             string str;
