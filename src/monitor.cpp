@@ -10,7 +10,9 @@
 /* Author: Marty Kraimer */
 
 #include <iostream>
+#include <epicsStdlib.h>
 #include <epicsGetopt.h>
+#include <epicsThread.h>
 #include <pv/pvaClient.h>
 
 using namespace std;
@@ -31,12 +33,14 @@ private:
     string providerName;
     string request;
     bool printValue;
+    double sleepTime;
     bool channelConnected;
     bool monitorConnected;
     bool isStarted;
 
     PvaClientChannelPtr pvaClientChannel;
     PvaClientMonitorPtr pvaClientMonitor;
+    Mutex mutex;
 
     void init(PvaClientPtr const &pvaClient)
     {
@@ -52,11 +56,13 @@ public:
         const string &channelName,
         const string &providerName,
         const string &request,
-        const bool printValue)
+        const bool printValue,
+        const double sleepTime)
     : channelName(channelName),
       providerName(providerName),
       request(request),
       printValue(printValue),
+      sleepTime(sleepTime),
       channelConnected(false),
       monitorConnected(false),
       isStarted(false)
@@ -68,10 +74,11 @@ public:
         const string & channelName,
         const string & providerName,
         const string  & request,
-        const bool printValue)
+        const bool printValue,
+        const double sleepTime)
     {
         ClientMonitorPtr client(ClientMonitorPtr(
-             new ClientMonitor(channelName,providerName,request,printValue)));
+             new ClientMonitor(channelName,providerName,request,printValue,sleepTime)));
         client->init(pvaClient);
         return client;
     }
@@ -106,6 +113,7 @@ public:
     
     virtual void event(PvaClientMonitorPtr const & monitor)
     {
+        if(sleepTime>0.0) epicsThreadSleep(sleepTime);
         while(monitor->poll()) {
             PvaClientMonitorDataPtr monitorData = monitor->getData();
              std::cout<<"Event "<< channelName
@@ -148,11 +156,12 @@ int main(int argc,char *argv[])
     string provider("pva");
     string channelName("PVRdouble");
     string request("value,alarm,timeStamp");
+    double sleepTime = 0.0;
     string optString;
     bool debug(false);
     bool printValue(true);
     int opt;
-    while((opt = getopt(argc, argv, "hp:r:d:v:")) != -1) {
+    while((opt = getopt(argc, argv, "hp:r:d:v:s:")) != -1) {
         switch(opt) {
             case 'p':
                 provider = optarg;
@@ -161,12 +170,13 @@ int main(int argc,char *argv[])
                 request = optarg;
                 break;
             case 'h':
-             cout << " -h -p provider -r request - d debug -v printValue channelNames " << endl;
+             cout << " -h -p provider -r request - d debug -v printValue -s 0.0 channelNames " << endl;
              cout << "default" << endl;
              cout << "-p " << provider 
                   << " -r " << request
                   << " -d " << (debug ? "true" : "false")
                   << " -v " << (printValue ? "true" : "false")
+                  << " -v " << sleepTime
                   << " " <<  channelName
                   << endl;           
                 return 0;
@@ -178,6 +188,9 @@ int main(int argc,char *argv[])
                optString =  optarg;
                if(optString=="false") printValue = false;
                break;
+            case 's': 
+                epicsScanDouble(optarg, &sleepTime);
+                break;
             default:
                 std::cerr<<"Unknown argument: "<<opt<<"\n";
                 return -1;
@@ -212,7 +225,9 @@ int main(int argc,char *argv[])
         }
         PvaClientPtr pva= PvaClient::get(provider);
         for(int i=0; i<nPvs; ++i) {
-            ClientMonitors.push_back(ClientMonitor::create(pva,channelNames[i],provider,request,printValue));
+            ClientMonitors.push_back(
+               ClientMonitor::create(
+                   pva,channelNames[i],provider,request,printValue,sleepTime));
         }
         while(true) {
             string str;
@@ -221,6 +236,7 @@ int main(int argc,char *argv[])
                  cout << "Type help exit status start stop\n";
                  continue;
             }
+            if(str.compare("exit")==0) break;
             if(str.compare("start")==0){
                  cout << "request?\n";
                  getline(cin,request);
@@ -243,7 +259,7 @@ int main(int argc,char *argv[])
                  }
                  continue;
             }
-            break;
+            cout << str << " not a legal commnd\n";
         }
     } catch (std::runtime_error e) {
         cerr << "exception " << e.what() << endl;

@@ -77,8 +77,7 @@ struct MonTracker : public pvac::ClientChannel::MonitorCallback,
                 break;
             case pvac::MonitorEvent::Data:
             {
-                unsigned n;
-                for(n=0; n<2 && mon.poll(); n++)
+                while(mon.poll())
                 {
                     Guard G(mutex);
                     numMonitor++;
@@ -102,7 +101,6 @@ struct MonTracker : public pvac::ClientChannel::MonitorCallback,
         if(diff>0.0) persecond = numnow/diff;
         return persecond;
     }
-
 };
 
 } // namespace
@@ -111,7 +109,7 @@ int main(int argc, char *argv[]) {
     pva::ca::CAClientFactory::start();
     try {
         std::string providerName("pva"),
-                    requestStr("field()");
+                    requestStr("value,alarm,timeStamp");
         typedef std::vector<std::string> pvs_t;
         pvs_t pvs;
 
@@ -155,7 +153,6 @@ int main(int argc, char *argv[]) {
             MonTracker::shared_pointer mon(new MonTracker(pv));
 
             pvac::ClientChannel chan(provider.connect(pv));
-
             mon->mon = chan.monitor(mon.get(), pvReq);
 
             monitors.push_back(mon);
@@ -166,9 +163,24 @@ int main(int argc, char *argv[]) {
             if(str.compare("exit")==0){
                  break;
             }
+            if(str.compare("stop")==0){
+                for(size_t i=0; i<monitors.size(); ++i){
+                    monitors[i].reset();
+                }
+                continue;
+            }
+            if(str.compare("start")==0){
+                for(size_t i=0; i<monitors.size(); ++i){
+                    monitors[i] = MonTracker::shared_pointer(new MonTracker(pvs[i]));
+                    pvac::ClientChannel chan(provider.connect(pvs[i]));
+                    monitors[i]->mon = chan.monitor(monitors[i].get(), pvReq);
+                }
+                continue;
+            }
             double events = 0.0;
             for(size_t i=0; i<monitors.size(); ++i) {
-                events += monitors[i]->report();
+                MonTracker::shared_pointer mon(monitors[i]);
+                if(mon) events += monitors[i]->report();
             }
             cout << "total events/second " << events << endl;
         }

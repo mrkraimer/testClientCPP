@@ -78,13 +78,12 @@ struct MonTracker : public pvac::ClientChannel::MonitorCallback,
                 break;
             case pvac::MonitorEvent::Data:
             {
-                unsigned n;
-                for(n=0; n<2 && mon.poll(); n++)
+                while(mon.poll())
                 {
                     pvd::PVField::const_shared_pointer fld(mon.root->getSubField("value"));
                     if(!fld) fld = mon.root;
                     std::cout<<"Event "<<name;
-                    if(printValue) std::cout<<fld;
+                    if(printValue) std::cout << " " <<fld;
                     std::cout <<" Changed:"<<mon.changed <<" overrun:"<<mon.overrun<<"\n";
                 }
             }

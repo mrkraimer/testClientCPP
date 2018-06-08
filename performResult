@@ -94,6 +94,49 @@ bin/linux-x86_64/monitormerate -p ca  FAST1 FAST2 FAST3 FAST4
 total events/second 13331.8
 
 
+bin/linux-x86_64/put -p ca DBRdoubleArray01
+bin/linux-x86_64/monitorrate -p ca -r value  DBRdoubleArray01
+total events/second 43.031
+
+bin/linux-x86_64/put -p pva DBRdoubleArray01
+bin/linux-x86_64/monitorrate -p ca -r value  DBRdoubleArray01
+total events/second 44.0326
+
+
+bin/linux-x86_64/put -p ca DBRdoubleArray01
+puts per second 143.739
+
+
+
+bin/linux-x86_64/put -p pva DBRdoubleArray01
+puts per second 288.44
+...
+puts per second 147.459  monitor -p pva
+...
+puts per second 130.57   monitor -p ca
+bin/linux-x86_64/monitorrate -p pva -r value  DBRdoubleArray01
+total events/second 81.8437
+..bin/linux-x86_64/monitorrate -p ca -r value  DBRdoubleArray01
+total events/second 44.7933
+
+
+ bin/linux-x86_64/put -p ca DBRdoubleArray01
+puts per second 146.105
+...
+puts per second 112.977 monitor -p pva
+ bin/linux-x86_64/monitorrate -p pva -r value  DBRdoubleArray01
+total events/second 53.8053
+...
+puts per second 86.8223   monitor -p ca
+bin/linux-x86_64/monitorrate -p ca -r value  DBRdoubleArray01
+total events/second 43.9744
+
+
+
+
+
+
+
 
 
 

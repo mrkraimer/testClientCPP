@@ -32,7 +32,7 @@ of **EPICS4_DIR** and **EPICS_BASE**.
 ## Starting IOCs for test
 
 There are files named fast1.db, ..., fast4.db.
-These are databases for use with **softIocPVA** that is provided with pvAccessCPP.
+These are databases for use with **softIocPVA** that is provided with **pva2pva**.
 This creates an IOC that has DBRecords and also provider **qsrv**.
 
 To use these a softlink can be created to **softIocPVA**.

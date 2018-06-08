@@ -8,14 +8,13 @@
  */
 
 /* Author: Marty Kraimer */
-
 #include <iostream>
 #include <epicsGetopt.h>
 #include <epicsGuard.h>
 #include <pv/pvaClient.h>
+#include <pv/convert.h>
 #include <epicsThread.h>
 #include <pv/timeStamp.h>
-
 
 using namespace std;
 using namespace epics::pvData;
@@ -23,64 +22,60 @@ using namespace epics::pvAccess;
 using namespace epics::pvaClient;
 
 typedef epicsGuard<epicsMutex> Guard;
-typedef epicsGuardRelease<epicsMutex> UnGuard;
 
-class ClientMonitor;
-typedef std::tr1::shared_ptr<ClientMonitor> ClientMonitorPtr;
+class ClientPut;
+typedef std::tr1::shared_ptr<ClientPut> ClientPutPtr;
 
-class ClientMonitor :
+class ClientPut :
     public PvaClientChannelStateChangeRequester,
-    public PvaClientMonitorRequester,
-    public std::tr1::enable_shared_from_this<ClientMonitor>
+    public PvaClientPutRequester,
+    public std::tr1::enable_shared_from_this<ClientPut>
 {
 private:
     string channelName;
     string providerName;
     string request;
     bool channelConnected;
-    bool monitorConnected;
-    bool isStarted;
-    long numMonitor;
-    TimeStamp timeStamp;
-    TimeStamp timeStampLast;
+    bool putConnected;
+    size_t num;
+    long numPut;
     epicsMutex mutex;
 
     PvaClientChannelPtr pvaClientChannel;
-    PvaClientMonitorPtr pvaClientMonitor;
+    PvaClientPutPtr pvaClientPut;
 
     void init(PvaClientPtr const &pvaClient)
     {
-
         pvaClientChannel = pvaClient->createChannel(channelName,providerName);
         pvaClientChannel->setStateChangeRequester(shared_from_this());
         pvaClientChannel->issueConnect();
     }
-
 public:
-    POINTER_DEFINITIONS(ClientMonitor);
-    ClientMonitor(
+    POINTER_DEFINITIONS(ClientPut);
+    ClientPut(
         const string &channelName,
         const string &providerName,
-        const string &request)
+        const string &request,
+        size_t num)
     : channelName(channelName),
       providerName(providerName),
       request(request),
       channelConnected(false),
-      monitorConnected(false),
-      isStarted(false),
-      numMonitor(0)
+      putConnected(false),
+      num(num),
+      numPut(0)
     {
-        timeStampLast.getCurrent();
     }
-
-    static ClientMonitorPtr create(
+    
+    static ClientPutPtr create(
         PvaClientPtr const &pvaClient,
         const string & channelName,
         const string & providerName,
-        const string  & request)
+        const string  & request,
+        size_t num)
     {
-        ClientMonitorPtr client(ClientMonitorPtr(
-             new ClientMonitor(channelName,providerName,request)));
+        ClientPutPtr client(ClientPutPtr(
+             new ClientPut(channelName,providerName,request,num)));
         client->init(pvaClient);
         return client;
     }
@@ -89,69 +84,73 @@ public:
     {
         channelConnected = isConnected;
         if(isConnected) {
-            if(!pvaClientMonitor) {
-                pvaClientMonitor = pvaClientChannel->createMonitor(request);
-                pvaClientMonitor->setRequester(shared_from_this());
-                pvaClientMonitor->issueConnect();
+            if(!pvaClientPut) {
+                pvaClientPut = pvaClientChannel->createPut(request);
+                pvaClientPut->setRequester(shared_from_this());
+                pvaClientPut->issueConnect();
             }
         }
     }
 
-    ClientMonitor()
+    virtual void channelPutConnect(
+        const epics::pvData::Status& status,
+        PvaClientPutPtr const & clientPut)
     {
+        putConnected = true;
+        cout << "channelPutConnect " << channelName << " status " << status << endl;
     }
 
-    virtual void monitorConnect(epics::pvData::Status const & status,
-        PvaClientMonitorPtr const & monitor, epics::pvData::StructureConstPtr const & structure)
-    {
-        if(!status.isOK()) return;
-        monitorConnected = true;
-        if(isStarted) return;
-        isStarted = true;
-        pvaClientMonitor->start();
-    }
     
-    virtual void event(PvaClientMonitorPtr const & monitor)
+    virtual void putDone(
+        const epics::pvData::Status& status,
+        PvaClientPutPtr const & clientPut)
     {
-        while(monitor->poll()) {
-            {
+         if(!status.isOK()) {
+             cout << "putDone " << channelName << " status " << status << endl;
+         } else {
+             numPut++;
+             {
                 Guard G(mutex);
-                numMonitor++;
+                numPut++;
             }
-            monitor->releaseEvent();
-        }
+         }
     }
 
-    PvaClientMonitorPtr getPvaClientMonitor() {
-        return pvaClientMonitor;
-    }
-
-    double report()
+    void put(double value)
     {
-        timeStamp.getCurrent();
-        double  diff = TimeStamp::diff(timeStamp,timeStampLast);
+        if(!channelConnected) {
+            cout << channelName << " channel not connected\n";
+            return;
+        }
+        if(!putConnected) {
+            cout << channelName << " channelPut not connected\n";
+            return;
+        }
+        PvaClientPutDataPtr putData = pvaClientPut->getData();
+        shared_vector<double> data(num,0);
+        for(size_t i=0; i<data.size(); ++i) data[i] = (value +1);
+        putData->putDoubleArray(freeze(data));
+        pvaClientPut->put();
+    }
+
+    long report()
+    {
         long numnow = 0;
         {
             Guard G(mutex);
-            numnow = numMonitor;
-            numMonitor = 0;
+            numnow = numPut;
+            numPut = 0;
         }
-        timeStampLast.getCurrent();
-        double persecond = 0;
-        if(diff>0.0) persecond = numnow/diff;
-        return persecond;
+        return numnow;
     }
-
 };
-
-typedef std::tr1::shared_ptr<ClientMonitor> ClientMonitorPtr;
 
 
 int main(int argc,char *argv[])
 {
     string provider("pva");
-    string channelName("PVRdouble");
-    string request("value,alarm,timeStamp");
+    string channelName("DBRdoubleArray01");
+    string request("value");
     string debugString;
     bool debug(false);
     int opt;
@@ -168,7 +167,7 @@ int main(int argc,char *argv[])
              cout << "default" << endl;
              cout << "-p " << provider 
                   << " -r " << request
-                  << " -d " << (debug ? "true" : "false")
+                  << " -d " << (debug ? "true" : "false") 
                   << " " <<  channelName
                   << endl;           
                 return 0;
@@ -190,14 +189,15 @@ int main(int argc,char *argv[])
     cout << "provider " << provider
          << " channelName " <<  channelName
          << " request " << request
-         << " debug " << (debug ? "true" : "false") << endl;
+         << " debug " << (debug ? "true" : "false")  << endl;
 
-    cout << "_____monitorrate starting__\n";
-    PvaClientPtr pva(PvaClient::get(provider));
+    cout << "_____put starting__\n";
+    
     try {   
         if(debug) PvaClient::setDebug(true);
+        size_t nelements = 1000000;
         vector<string> channelNames;
-        vector<ClientMonitorPtr> clientMonitors;
+        vector<ClientPutPtr> ClientPuts;
         int nPvs = argc - optind;       /* Remaining arg list are PV names */
         if (nPvs==0)
         {
@@ -206,39 +206,33 @@ int main(int argc,char *argv[])
         } else {
             for (int n = 0; optind < argc; n++, optind++) channelNames.push_back(argv[optind]);
         }
+        PvaClientPtr pva= PvaClient::get(provider);
         for(int i=0; i<nPvs; ++i) {
-            clientMonitors.push_back(
-                ClientMonitor::create(pva,channelNames[i],provider,request));
+            ClientPuts.push_back(ClientPut::create(pva,channelNames[i],provider,request,nelements));
         }
+        double value = 0.0;
+        epicsThreadSleep(1.0);
+        TimeStamp timeStamp;
+        TimeStamp timeStampLast;
+        timeStampLast.getCurrent();
         while(true) {
-            string str;
-            getline(cin,str);
-            if(str.compare("stop")==0){
-                  for(int i=0; i<nPvs; ++i){
-                      PvaClientMonitorPtr pvaClientMonitor(clientMonitors[i]->getPvaClientMonitor());
-                      if(pvaClientMonitor) pvaClientMonitor->stop();
-                  }
-                  continue;
-            }
-            if(str.compare("start")==0){
-                  for(int i=0; i<nPvs; ++i){
-                      PvaClientMonitorPtr pvaClientMonitor(clientMonitors[i]->getPvaClientMonitor());
-                      if(pvaClientMonitor) pvaClientMonitor->start();
-                  }
-                  continue;
-            }
-            if(str.compare("exit")==0){
-                 for(int i=0; i<nPvs; ++i){
-                      PvaClientMonitorPtr pvaClientMonitor(clientMonitors[i]->getPvaClientMonitor());
-                      if(pvaClientMonitor) pvaClientMonitor->stop();
-                  }
-                 break;
-            }
-            double events = 0.0;
             for(int i=0; i<nPvs; ++i) {
-                events += clientMonitors[i]->report();
+                try {
+                    ClientPuts[i]->put(value++);
+                } catch (std::runtime_error e) {
+                   cerr << "exception " << e.what() << endl;
+                }
             }
-            cout << "total events/second " << events << endl;
+            timeStamp.getCurrent();
+            double diff = TimeStamp::diff(timeStamp,timeStampLast);
+            if(diff>2.0) {
+                 long total = 0;
+                 for(int i=0; i<nPvs; ++i) {
+                     total += ClientPuts[i]->report();
+                 }
+                 cout << "puts per second " << (total/diff) << endl;
+                 timeStampLast.getCurrent();
+            }
         }
     } catch (std::runtime_error e) {
         cerr << "exception " << e.what() << endl;

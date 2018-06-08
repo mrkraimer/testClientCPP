@@ -9,7 +9,6 @@ PROD_HOST += monitorme
 monitorme_SRCS += monitorme.cpp
 monitorme_LIBS += pvaClient pvAccess pvAccessCA pvData ca Com
 
-
 PROD_HOST += monitor
 monitor_SRCS += monitor.cpp
 monitor_LIBS += pvaClient pvAccess pvAccessCA pvData ca Com
@@ -18,10 +17,18 @@ PROD_HOST += monitormerate
 monitormerate_SRCS += monitormerate.cpp
 monitormerate_LIBS += pvaClient pvAccess pvAccessCA pvData ca Com
 
-
 PROD_HOST += monitorrate
 monitorrate_SRCS += monitorrate.cpp
 monitorrate_LIBS += pvaClient pvAccess pvAccessCA pvData ca Com
+
+PROD_HOST += put
+put_SRCS += put.cpp
+put_LIBS += pvaClient pvAccess pvAccessCA pvData ca Com
+
+
+PROD_HOST += data
+data_SRCS += data.cpp
+data_LIBS += pvData Com
 
 
 #===========================
