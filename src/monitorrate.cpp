@@ -227,13 +227,7 @@ int main(int argc,char *argv[])
                   }
                   continue;
             }
-            if(str.compare("exit")==0){
-                 for(int i=0; i<nPvs; ++i){
-                      PvaClientMonitorPtr pvaClientMonitor(clientMonitors[i]->getPvaClientMonitor());
-                      if(pvaClientMonitor) pvaClientMonitor->stop();
-                  }
-                 break;
-            }
+            if(str.compare("exit")==0) break;
             double events = 0.0;
             for(int i=0; i<nPvs; ++i) {
                 events += clientMonitors[i]->report();

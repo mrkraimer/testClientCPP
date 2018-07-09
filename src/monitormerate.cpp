@@ -144,17 +144,13 @@ int main(int argc, char *argv[]) {
 
         std::cout<<"Use provider: "<<providerName<<"\n";
         pvac::ClientProvider provider(providerName, conf);
-
         std::vector<MonTracker::shared_pointer> monitors;
 
         for(pvs_t::const_iterator it=pvs.begin(); it!=pvs.end(); ++it) {
             const std::string& pv = *it;
-
             MonTracker::shared_pointer mon(new MonTracker(pv));
-
             pvac::ClientChannel chan(provider.connect(pv));
             mon->mon = chan.monitor(mon.get(), pvReq);
-
             monitors.push_back(mon);
         }
         while(true) {
