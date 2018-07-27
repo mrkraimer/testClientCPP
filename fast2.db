@@ -37,3 +37,24 @@ record(calc, "SLOW2")
         field(LLSV, "MAJOR")
 }
 
+record(bo, "BO2") {
+    field(ZNAM, "Zero")
+    field(ONAM, "One")
+    field(VAL,  "0")
+    field(PINI, "YES")
+}
+
+record(mbbo, "MBBO2")
+{
+    field(NOBT,"2")
+    field(ZRVL,"0")
+    field(ONVL,"1")
+    field(TWVL,"2")
+    field(THVL,"3")
+    field(ZRST,"zero")
+    field(ONST,"one")
+    field(TWST,"two")
+    field(THST,"three")
+    field(TWSV,"MINOR")
+    field(THSV,"MAJOR")
+}

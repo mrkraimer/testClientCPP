@@ -4,7 +4,8 @@ include $(TOP)/configure/CONFIG
 #----------------------------------------
 #  ADD MACRO DEFINITIONS AFTER THIS LINE
 
-EPICS_BASE_PVA_CORE_LIBS = pvaClient pvAccess pva2ca pvData ca Com
+#EPICS_BASE_PVA_CORE_LIBS = pvaClient pvAccess pva2ca pvData ca Com
+EPICS_BASE_PVA_CORE_LIBS = pvaClient pvAccess pvAccessCA pvData ca Com
 
 PROD_HOST += monitorme
 monitorme_SRCS += monitorme.cpp
@@ -26,10 +27,21 @@ PROD_HOST += getputmonitorrate
 getputmonitorrate_SRCS += getputmonitorrate.cpp
 getputmonitorrate_LIBS += $(EPICS_BASE_PVA_CORE_LIBS)
 
+PROD_HOST += monitormany
+monitormany_SRCS += monitormany.cpp
+monitormany_LIBS += $(EPICS_BASE_PVA_CORE_LIBS)
+
+PROD_HOST += getmany
+getmany_SRCS += getmany.cpp
+getmany_LIBS += $(EPICS_BASE_PVA_CORE_LIBS)
+
+PROD_HOST += putmany
+putmany_SRCS += putmany.cpp
+putmany_LIBS += $(EPICS_BASE_PVA_CORE_LIBS)
+
 PROD_HOST += put
 put_SRCS += put.cpp
 put_LIBS += $(EPICS_BASE_PVA_CORE_LIBS)
-
 
 PROD_HOST += data
 data_SRCS += data.cpp
