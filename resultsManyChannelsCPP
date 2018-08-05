@@ -1,0 +1,15 @@
+nchannels 50000 provider pva
+channel 0.216106
+wait 30.1787
+get1 17.3749
+put 22.3495
+get2 6.12843
+
+
+nchannels 50000 provider ca
+channel 0.266875
+wait 55.0557
+get1 6.19273
+put 4.95026
+get2 3.42974
+

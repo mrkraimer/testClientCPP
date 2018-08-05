@@ -7,6 +7,11 @@ include $(TOP)/configure/CONFIG
 #EPICS_BASE_PVA_CORE_LIBS = pvaClient pvAccess pva2ca pvData ca Com
 EPICS_BASE_PVA_CORE_LIBS = pvaClient pvAccess pvAccessCA pvData ca Com
 
+PROD_HOST += timeManyChannel
+timeManyChannel_SRCS += timeManyChannel.cpp
+timeManyChannel_LIBS += $(EPICS_BASE_PVA_CORE_LIBS)
+
+
 PROD_HOST += monitorme
 monitorme_SRCS += monitorme.cpp
 monitorme_LIBS += $(EPICS_BASE_PVA_CORE_LIBS)
