@@ -52,6 +52,10 @@ PROD_HOST += data
 data_SRCS += data.cpp
 data_LIBS += pvData Com
 
+PROD_HOST += showsize
+showsize_SRCS += showsize.cpp
+showsize_LIBS += pvData Com
+
 
 #===========================
 

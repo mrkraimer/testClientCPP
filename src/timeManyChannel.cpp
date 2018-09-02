@@ -215,6 +215,9 @@ int main(int argc,char *argv[])
         cout << "get1 " << TimeStamp::diff(endGet1,startGet1) << "\n";
         cout << "put " << TimeStamp::diff(endPut,startPut) << "\n";
         cout << "get2 " << TimeStamp::diff(endGet2,startGet2) << "\n";
+        cout << "enter something\n";
+        string str;
+        getline(cin,str);
        
     } catch (std::runtime_error e) {
         cerr << "exception " << e.what() << endl;
