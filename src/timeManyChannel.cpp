@@ -41,6 +41,7 @@ private:
     string channelName;
     string provider;
     bool channelConnected;
+    epics::pvData::Mutex mutex;
 
     PvaClientChannelPtr pvaClientChannel;
     void init(PvaClientPtr const &pvaClient)
@@ -76,22 +77,23 @@ public:
 
     virtual void channelStateChange(PvaClientChannelPtr const & channel, bool isConnected)
     {
-        channelConnected = isConnected;
+       {
+           Lock xx(mutex);
+           if(isConnected) channelConnected = isConnected;
+       }
     }
 
-    bool isConnected() { return channelConnected; }
-
-    void waitConnect()
+    bool isConnected()
     {
-        Status status = pvaClientChannel->waitConnect();
-        cout << "waitConnect " << channelName << " status " << status << endl;
-
+        {
+           Lock xx(mutex);
+           return channelConnected;
+        }
     }
-
 
     void get()
     {
-        if(!channelConnected) {
+        if(!isConnected()) {
             cout << channelName << " channel not connected\n";
             return;
         }
@@ -189,14 +191,21 @@ int main(int argc,char *argv[])
                    pva,channelNames[i],provider));
         }
         endChannel.getCurrent();
+        int numNotConnected = 0;
         startWait.getCurrent();
-        for(int i=0; i<nchannels; ++i) {
-             ClientChannel[i]->waitConnect();      
+        while(true) {
+            int numConnect = 0;
+            for(int i=0; i<nchannels; ++i) {
+                if(ClientChannel[i]->isConnected()) numConnect++;
+            }
+            if(numConnect==nchannels) break;
+            cout << "numConnect " << numConnect << "\n";
+            epicsThreadSleep(1.0);
         }
         endWait.getCurrent();
         startGet1.getCurrent();
         for(int i=0; i<nchannels; ++i) {
-             ClientChannel[i]->get();      
+             ClientChannel[i]->get();
         }
         endGet1.getCurrent();
         startPut.getCurrent();
@@ -210,6 +219,7 @@ int main(int argc,char *argv[])
         }
         endGet2.getCurrent();
         cout << "nchannels " << nchannels << " provider " << provider << "\n";
+        cout << "numNotConnected " << numNotConnected << "\n";
         cout << "channel " << TimeStamp::diff(endChannel,startChannel) << "\n";
         cout << "wait " << TimeStamp::diff(endWait,startWait) << "\n";
         cout << "get1 " << TimeStamp::diff(endGet1,startGet1) << "\n";
@@ -218,7 +228,11 @@ int main(int argc,char *argv[])
         cout << "enter something\n";
         string str;
         getline(cin,str);
-       
+        int numConnect = 0;
+        for(int i=0; i<nchannels; ++i) {
+            if(ClientChannel[i]->isConnected()) numConnect++;
+        }
+        cout << " numConnect " << numConnect << "\n";
     } catch (std::runtime_error e) {
         cerr << "exception " << e.what() << endl;
         return 1;

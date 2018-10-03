@@ -11,6 +11,9 @@ PROD_HOST += timeManyChannel
 timeManyChannel_SRCS += timeManyChannel.cpp
 timeManyChannel_LIBS += $(EPICS_BASE_PVA_CORE_LIBS)
 
+PROD_HOST += timeManyChannelGPM
+timeManyChannelGPM_SRCS += timeManyChannelGPM.cpp
+timeManyChannelGPM_LIBS += $(EPICS_BASE_PVA_CORE_LIBS)
 
 PROD_HOST += monitorme
 monitorme_SRCS += monitorme.cpp
