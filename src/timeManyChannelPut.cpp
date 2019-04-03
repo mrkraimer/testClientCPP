@@ -10,16 +10,25 @@
 /* Author: Marty Kraimer */
 
 #include <iostream>
+#include <sstream>
 #include <epicsStdlib.h>
 #include <epicsGetopt.h>
-#include <epicsThread.h>
+#include <epicsGuard.h>
 #include <pv/pvaClient.h>
+#include <epicsThread.h>
+#include <pv/event.h>
+#include <pv/timeStamp.h>
 #include <pv/convert.h>
+
 
 using namespace std;
 using namespace epics::pvData;
 using namespace epics::pvAccess;
 using namespace epics::pvaClient;
+
+
+typedef epicsGuard<epicsMutex> Guard;
+typedef epicsGuardRelease<epicsMutex> UnGuard;
 
 class ClientPut;
 typedef std::tr1::shared_ptr<ClientPut> ClientPutPtr;
@@ -31,56 +40,83 @@ class ClientPut :
 {
 private:
     string channelName;
-    string providerName;
+    string provider;
     string request;
+    
     bool channelConnected;
     bool putConnected;
+    bool isStarted;
+    epics::pvData::Mutex mutex;
 
     PvaClientChannelPtr pvaClientChannel;
+    PvaClientGetPtr pvaClientGet;
     PvaClientPutPtr pvaClientPut;
+    PvaClientMonitorPtr pvaClientMonitor;
+    Event waitForCallback;  
 
     void init(PvaClientPtr const &pvaClient)
     {
-        pvaClientChannel = pvaClient->createChannel(channelName,providerName);
+        pvaClientChannel = pvaClient->createChannel(channelName,provider);
         pvaClientChannel->setStateChangeRequester(shared_from_this());
-        pvaClientChannel->issueConnect();
     }
 public:
     POINTER_DEFINITIONS(ClientPut);
     ClientPut(
         const string &channelName,
-        const string &providerName,
-        const string &request)
+        const string &provider,
+        const string &request,
+        const string &putrequest)
     : channelName(channelName),
-      providerName(providerName),
+      provider(provider),
       request(request),
       channelConnected(false),
       putConnected(false)
     {
     }
+    ~ClientPut()
+     {
+         //cout<< "~ClientPut() "<< channelName << "\n";
+     }
     
     static ClientPutPtr create(
         PvaClientPtr const &pvaClient,
         const string & channelName,
-        const string & providerName,
+        const string & provider,
         const string  & request)
     {
-        ClientPutPtr client(ClientPutPtr(
-             new ClientPut(channelName,providerName,request)));
+       ClientPutPtr client(ClientPutPtr(
+             new ClientPut(channelName,provider,request,request)));
         client->init(pvaClient);
+        client->issueConnect();
         return client;
     }
 
+    void issueConnect()
+    {
+        pvaClientChannel->issueConnect();
+    }
+
+    bool isConnected()
+    {
+        {
+           Lock xx(mutex);
+           return (channelConnected ? true : false);
+        }
+    } 
+
     virtual void channelStateChange(PvaClientChannelPtr const & channel, bool isConnected)
     {
-        channelConnected = isConnected;
         if(isConnected) {
             if(!pvaClientPut) {
                 pvaClientPut = pvaClientChannel->createPut(request);
                 pvaClientPut->setRequester(shared_from_this());
                 pvaClientPut->issueConnect();
             }
-        }
+       }
+       {
+           Lock xx(mutex);
+           if(isConnected) channelConnected = isConnected;
+       }
     }
 
     virtual void channelPutConnect(
@@ -88,7 +124,7 @@ public:
         PvaClientPutPtr const & clientPut)
     {
         putConnected = true;
-        cout << "channelPutConnect " << channelName << " status " << status << endl;
+//        cout << "channelPutConnect " << channelName << " status " << status << endl;
     }
 
     
@@ -96,7 +132,7 @@ public:
         const epics::pvData::Status& status,
         PvaClientPutPtr const & clientPut)
     {
-         cout << "putDone " << channelName << " status " << status << endl;
+         waitForCallback.signal();
     }
 
     
@@ -104,17 +140,20 @@ public:
         const epics::pvData::Status& status,
         PvaClientPutPtr const & clientPut)
     {
+#ifdef XXX
          cout << "getDone " << channelName << " status " << status << endl;
           if(status.isOK()) {
              cout << pvaClientPut->getData()->getPVStructure() << endl;
          } else {
-             cout << "getGetDone " << channelName << " status " << status << endl;
+             cout << "getDone " << channelName << " status " << status << endl;
          }
+#endif
     }
 
 
     void put(const string & value)
     {
+//        cout << "put " << channelName << " value " << value << endl;
         if(!channelConnected) {
             cout << channelName << " channel not connected\n";
             return;
@@ -163,9 +202,10 @@ public:
             convert->fromStringArray(pvScalarArray,0,n,values,0);        
         }
         pvaClientPut->issuePut();
+        waitForCallback.wait(); 
     }
 
-    void get()
+    void getPut()
     {
         if(!channelConnected) {
             cout << channelName << " channel not connected\n";
@@ -182,40 +222,30 @@ public:
 
 int main(int argc,char *argv[])
 {
+    string argString("");
     string provider("pva");
     epicsInt32 nchannels = 50000;
     epicsInt32 offset = 1;
-    string request("value,alarm,timeStamp");
+    string request("value");
     string optString;
-    bool debug(false);
     int opt;
-    while((opt = getopt(argc, argv, "hp:r:d:n:")) != -1) {
+    while((opt = getopt(argc, argv, "hp:n:")) != -1) {
         switch(opt) {
             case 'p':
                 provider = optarg;
                 break;
-            case 'r':
-                request = optarg;
-                break;
             case 'h':
-             cout << "-p provider -r request - d debug -n nchannels -o offset" << endl;
+             cout << "-p provider -n nchannels  " << endl;
              cout << "default" << endl;
              cout << "-p " << provider 
-                  << " -r " << request
-                  << " -d " << (debug ? "true" : "false")
                   << " -n " <<  nchannels
-                  << " -o " <<  offset
                   << endl;           
                 return 0;
-            case 'd' :
-               optString =  optarg;
-               if(optString=="true") debug = true;
-               break;
             case 'n': 
                 epicsParseInt32(optarg, &nchannels,10,NULL);
                 break;
-            case 'o': 
-                epicsParseInt32(optarg, &offset,10,NULL);
+            case 'r':
+                request = optarg;
                 break;
             default:
                 std::cerr<<"Unknown argument: "<<opt<<"\n";
@@ -228,19 +258,16 @@ int main(int argc,char *argv[])
         cerr<< "multiple providers are not allowed\n";
         return 1;
     }
+    if(offset<0) offset=0;
     cout << "provider " << provider
          << " nchannels " <<  nchannels
-          << " offset " <<  offset
-         << " request " << request
-         << " debug " << (debug ? "true" : "false")
          << endl;
 
-    cout << "_____monitor starting__\n";
+    cout << "_____timeMultiChannel starting__\n";
     
     try {   
-        if(debug) PvaClient::setDebug(true);
         vector<string> channelNames;
-        vector<ClientPutPtr> ClientPuts;
+        vector<ClientPutPtr> ClientPut;
         for(int i=offset; i< nchannels + offset; ++i) {
              std::ostringstream s;
              s <<"X";
@@ -249,39 +276,49 @@ int main(int argc,char *argv[])
              channelNames.push_back(channelName);
         }
         PvaClientPtr pva= PvaClient::get(provider);
+        TimeStamp startChannel;
+        TimeStamp endChannel;
+        TimeStamp startWait;
+        TimeStamp endWait;
+        TimeStamp startPut;
+        TimeStamp endPut;
+        startChannel.getCurrent();
         for(int i=0; i<nchannels; ++i) {
-            ClientPuts.push_back(
+            ClientPut.push_back(
                ClientPut::create(
                    pva,channelNames[i],provider,request));
         }
+        endChannel.getCurrent();
+        int numNotConnected = 0;
+        startWait.getCurrent();
         while(true) {
-            cout << "enter one of: exit put get\n";
-            int c = std::cin.peek();  // peek character
-            if ( c == EOF ) continue;
-            string str;
-            getline(cin,str);
-            if(str.compare("exit")==0) break;
-            if(str.compare("get")==0) {
-                 for(int i=0; i<nchannels; ++i) {
-                    try {
-                         ClientPuts[i]->get();
-                    } catch(std::exception& e) {
-                       cerr << "exception " << e.what() << endl;
-                    }
-                 }
-                 continue;
-            }
-            if(str.compare("put")!=0) continue;
-            cout << "enter value or values to put\n";
-            getline(cin,str);
+            int numConnect = 0;
             for(int i=0; i<nchannels; ++i) {
-                try {
-                    ClientPuts[i]->put(str);
-                } catch(std::exception& e) {
-                   cerr << "exception " << e.what() << endl;
-                }
+                if(ClientPut[i]->isConnected()) numConnect++;
             }
+            if(numConnect==nchannels) break;
+            cout << "numConnect " << numConnect << "\n";
+            epicsThreadSleep(1.0);
         }
+        endWait.getCurrent();
+        startPut.getCurrent();
+        for(int i=0; i<nchannels; ++i) {
+             ClientPut[i]->put("1.0");      
+        }
+        endPut.getCurrent();
+        cout << "nchannels " << nchannels << " provider " << provider << "\n";
+        cout << "numNotConnected " << numNotConnected << "\n";
+        cout << "channel " << TimeStamp::diff(endChannel,startChannel) << "\n";
+        cout << "wait " << TimeStamp::diff(endWait,startWait) << "\n";
+        cout << "put " << TimeStamp::diff(endPut,startPut) << "\n";
+        cout << "enter something\n";
+        string str;
+        getline(cin,str);
+        int numConnect = 0;
+        for(int i=0; i<nchannels; ++i) {
+            if(ClientPut[i]->isConnected()) numConnect++;
+        }
+        cout << " numConnect " << numConnect << "\n";
     } catch(std::exception& e) {
         cerr << "exception " << e.what() << endl;
         return 1;

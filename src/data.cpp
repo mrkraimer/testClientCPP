@@ -82,7 +82,7 @@ int main(int argc,char *argv[])
     try {   
        DataPtr data(Data::create(request));
        data->show();
-    } catch (std::runtime_error e) {
+    } catch(std::exception& e) {
         cerr << "exception " << e.what() << endl;
         return 1;
     }

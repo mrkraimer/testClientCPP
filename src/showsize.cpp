@@ -82,7 +82,7 @@ int main(int argc,char *argv[])
         size_t nfields = getnumberfields(pvStructure);
         cout << "total fields " << nfields  << "\n";
 
-    } catch (std::runtime_error e) {
+    } catch(std::exception& e) {
         cerr << "exception " << e.what() << endl;
         return 1;
     }

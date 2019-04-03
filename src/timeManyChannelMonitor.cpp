@@ -30,104 +30,151 @@ using namespace epics::pvaClient;
 typedef epicsGuard<epicsMutex> Guard;
 typedef epicsGuardRelease<epicsMutex> UnGuard;
 
-class ClientChannel;
-typedef std::tr1::shared_ptr<ClientChannel> ClientChannelPtr;
+class ClientMonitor;
+typedef std::tr1::shared_ptr<ClientMonitor> ClientMonitorPtr;
 
-class ClientChannel :
+class ClientMonitor :
     public PvaClientChannelStateChangeRequester,
-    public std::tr1::enable_shared_from_this<ClientChannel>
+    public PvaClientMonitorRequester,
+    public std::tr1::enable_shared_from_this<ClientMonitor>
 {
 private:
     string channelName;
     string provider;
+    string request;
+public:
+    epicsUInt64 nreceived;
+    epicsUInt64 nmissed;
+    double oldvalue;
+private:
     bool channelConnected;
+    bool monitorConnected;
+    bool isStarted;
     epics::pvData::Mutex mutex;
 
     PvaClientChannelPtr pvaClientChannel;
+    PvaClientMonitorPtr pvaClientMonitor;
+    Event waitForCallback;  
+
     void init(PvaClientPtr const &pvaClient)
     {
         pvaClientChannel = pvaClient->createChannel(channelName,provider);
         pvaClientChannel->setStateChangeRequester(shared_from_this());
-        pvaClientChannel->issueConnect();
     }
 public:
-    POINTER_DEFINITIONS(ClientChannel);
-    ClientChannel(
+    POINTER_DEFINITIONS(ClientMonitor);
+    ClientMonitor(
         const string &channelName,
-        const string &provider)
+        const string &provider,
+        const string &request)
     : channelName(channelName),
       provider(provider),
-      channelConnected(false)
+      request(request),
+      nreceived(0),
+      nmissed(0),
+      oldvalue(0.0),
+      channelConnected(false),
+      monitorConnected(false),
+      isStarted(false)
     {
     }
-    ~ClientChannel() {
-//         cout<< "~ClientChannel() "<< channelName << "\n";
-    }
+    ~ClientMonitor()
+     {
+         //cout<< "~ClientMonitor() "<< channelName << "\n";
+     }
     
-    static ClientChannelPtr create(
+    static ClientMonitorPtr create(
         PvaClientPtr const &pvaClient,
         const string & channelName,
-        const string & provider)
+        const string & provider,
+        const string  & request)
     {
-       ClientChannelPtr client(ClientChannelPtr(
-             new ClientChannel(channelName,provider)));
+       ClientMonitorPtr client(ClientMonitorPtr(
+             new ClientMonitor(channelName,provider,request)));
         client->init(pvaClient);
+        client->issueConnect();
         return client;
     }
 
-    virtual void channelStateChange(PvaClientChannelPtr const & channel, bool isConnected)
+    void issueConnect()
     {
-       {
-           Lock xx(mutex);
-           if(isConnected) channelConnected = isConnected;
-       }
+        pvaClientChannel->issueConnect();
     }
 
     bool isConnected()
     {
         {
            Lock xx(mutex);
-           return channelConnected;
+           return (channelConnected ? true : false);
+        }
+    } 
+
+    virtual void channelStateChange(PvaClientChannelPtr const & channel, bool isConnected)
+    {
+        if(isConnected) {
+            if(!pvaClientMonitor) {
+                pvaClientMonitor = pvaClientChannel->createMonitor(request);
+                pvaClientMonitor->setRequester(shared_from_this());
+                pvaClientMonitor->issueConnect();
+            }
+       }
+       {
+           Lock xx(mutex);
+           if(isConnected) channelConnected = isConnected;
+       }
+    }
+
+    virtual void monitorConnect(epics::pvData::Status const & status,
+        PvaClientMonitorPtr const & monitor, epics::pvData::StructureConstPtr const & structure)
+    {
+        if(!status.isOK()) return;
+        monitorConnected = true;
+        if(isStarted) return;
+        isStarted = true;
+        pvaClientMonitor->start();
+    }
+    
+    virtual void event(PvaClientMonitorPtr const & monitor)
+    {
+        while(monitor->poll()) {
+            double value = monitor->getData()->getDouble();
+            nreceived += 1;
+            if(oldvalue>0.0) {
+                long diff = value - oldvalue;
+                nmissed = diff -1;
+            }
+            oldvalue = value;
+            monitor->releaseEvent();
         }
     }
 
-    void get()
+     void stop()
     {
-        if(!isConnected()) {
-            cout << channelName << " channel not connected\n";
-            return;
-        }
-        try {
-            cout << "get " << channelName  << " " 
-                 << pvaClientChannel->get()->getData()->getPVStructure()->getSubField("value") << endl;
-        } catch(std::exception& e) {
-            cerr << "exception " << e.what() << endl;
-        }
+         if(isStarted) {
+             isStarted = false;
+             pvaClientMonitor->stop();
+         }
     }
 
-    void put(double value)
+    void start()
     {
-        if(!channelConnected) {
-            cout << channelName << " channel not connected\n";
-            return;
-        }
-        try {
-           PvaClientPutPtr put = pvaClientChannel->put();
-           PvaClientPutDataPtr putData = put->getData();
-           putData->putDouble(value); put->put();
-        } catch(std::exception& e) {
-            cerr << "exception " << e.what() << endl;
-        }
+         if(!channelConnected || !monitorConnected)
+         {
+              cout << "notconnected\n";
+         }
+         isStarted = true;
+         pvaClientMonitor->start();
     }
 };
 
 
-
 int main(int argc,char *argv[])
 {
+    string argString("");
     string provider("pva");
     epicsInt32 nchannels = 50000;
     epicsInt32 offset = 1;
+    string request("value,alarm,timeStamp");
     string optString;
     int opt;
     while((opt = getopt(argc, argv, "hp:n:")) != -1) {
@@ -144,6 +191,9 @@ int main(int argc,char *argv[])
                 return 0;
             case 'n': 
                 epicsParseInt32(optarg, &nchannels,10,NULL);
+                break;
+            case 'r':
+                request = optarg;
                 break;
             default:
                 std::cerr<<"Unknown argument: "<<opt<<"\n";
@@ -165,7 +215,7 @@ int main(int argc,char *argv[])
     
     try {   
         vector<string> channelNames;
-        vector<ClientChannelPtr> ClientChannel;
+        vector<ClientMonitorPtr> ClientMonitor;
         for(int i=offset; i< nchannels + offset; ++i) {
              std::ostringstream s;
              s <<"X";
@@ -174,63 +224,43 @@ int main(int argc,char *argv[])
              channelNames.push_back(channelName);
         }
         PvaClientPtr pva= PvaClient::get(provider);
-        TimeStamp startChannel;
-        TimeStamp endChannel;
-        TimeStamp startWait;
-        TimeStamp endWait;
-        TimeStamp startGet1;
-        TimeStamp endGet1;
-        TimeStamp startPut;
-        TimeStamp endPut;
-        TimeStamp startGet2;
-        TimeStamp endGet2;
-        startChannel.getCurrent();
+        TimeStamp startConnect;
+        TimeStamp endConnect;
+        startConnect.getCurrent();
         for(int i=0; i<nchannels; ++i) {
-            ClientChannel.push_back(
-               ClientChannel::create(
-                   pva,channelNames[i],provider));
+            ClientMonitor.push_back(
+               ClientMonitor::create(
+                   pva,channelNames[i],provider,request));
         }
-        endChannel.getCurrent();
         int numNotConnected = 0;
-        startWait.getCurrent();
         while(true) {
             int numConnect = 0;
             for(int i=0; i<nchannels; ++i) {
-                if(ClientChannel[i]->isConnected()) numConnect++;
+                if(ClientMonitor[i]->isConnected()) numConnect++;
             }
             if(numConnect==nchannels) break;
             cout << "numConnect " << numConnect << "\n";
             epicsThreadSleep(1.0);
         }
-        endWait.getCurrent();
-        startGet1.getCurrent();
-        for(int i=0; i<nchannels; ++i) {
-             ClientChannel[i]->get();
-        }
-        endGet1.getCurrent();
-        startPut.getCurrent();
-        for(int i=0; i<nchannels; ++i) {
-             ClientChannel[i]->put(1.0);      
-        }
-        endPut.getCurrent();
-        startGet2.getCurrent();
-        for(int i=0; i<nchannels; ++i) {
-             ClientChannel[i]->get();      
-        }
-        endGet2.getCurrent();
-        cout << "nchannels " << nchannels << " provider " << provider << "\n";
-        cout << "numNotConnected " << numNotConnected << "\n";
-        cout << "channel " << TimeStamp::diff(endChannel,startChannel) << "\n";
-        cout << "wait " << TimeStamp::diff(endWait,startWait) << "\n";
-        cout << "get1 " << TimeStamp::diff(endGet1,startGet1) << "\n";
-        cout << "put " << TimeStamp::diff(endPut,startPut) << "\n";
-        cout << "get2 " << TimeStamp::diff(endGet2,startGet2) << "\n";
+        endConnect.getCurrent();
         cout << "enter something\n";
         string str;
         getline(cin,str);
+        cout << "nchannels " << nchannels << " provider " << provider << "\n";
+        cout << "numNotConnected " << numNotConnected << "\n";
+        cout << "connect time " << TimeStamp::diff(endConnect,startConnect) << "\n";
+
         int numConnect = 0;
+        long nreceived = 0;
+        long nmissed = 0;
         for(int i=0; i<nchannels; ++i) {
-            if(ClientChannel[i]->isConnected()) numConnect++;
+              nreceived += ClientMonitor[i]->nreceived;
+              nmissed += ClientMonitor[i]->nmissed;
+        }
+        cout << "TOTAL RECEIVED " << nreceived << "\n";
+        cout << "TOTAL MISSED " << nmissed << "\n";
+        for(int i=0; i<nchannels; ++i) {
+            if(ClientMonitor[i]->isConnected()) numConnect++;
         }
         cout << " numConnect " << numConnect << "\n";
     } catch(std::exception& e) {
