@@ -62,6 +62,10 @@ PROD_HOST += put
 put_SRCS += put.cpp
 put_LIBS += $(EPICS_BASE_PVA_CORE_LIBS)
 
+PROD_HOST += examplePvaClientNTMultiGet
+examplePvaClientNTMultiGet_SRCS += examplePvaClientNTMultiGet.cpp
+examplePvaClientNTMultiGet_LIBS += $(EPICS_BASE_PVA_CORE_LIBS)
+
 PROD_HOST += data
 data_SRCS += data.cpp
 data_LIBS += pvData Com
