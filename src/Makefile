@@ -7,6 +7,10 @@ include $(TOP)/configure/CONFIG
 #EPICS_BASE_PVA_CORE_LIBS = pvaClient pvAccess pva2ca pvData ca Com
 EPICS_BASE_PVA_CORE_LIBS = pvaClient pvAccess pvAccessCA pvData ca Com
 
+PROD_HOST += monitorTwoFields
+monitorTwoFields_SRCS += monitorTwoFields.cpp
+monitorTwoFields_LIBS += $(EPICS_BASE_PVA_CORE_LIBS)
+
 PROD_HOST += timeManyChannel
 timeManyChannel_SRCS += timeManyChannel.cpp
 timeManyChannel_LIBS += $(EPICS_BASE_PVA_CORE_LIBS)
@@ -61,6 +65,11 @@ putmany_LIBS += $(EPICS_BASE_PVA_CORE_LIBS)
 PROD_HOST += put
 put_SRCS += put.cpp
 put_LIBS += $(EPICS_BASE_PVA_CORE_LIBS)
+
+PROD_HOST += putDoubleArray
+putDoubleArray_SRCS += putDoubleArray.cpp
+putDoubleArray_LIBS += $(EPICS_BASE_PVA_CORE_LIBS)
+
 
 PROD_HOST += examplePvaClientNTMultiGet
 examplePvaClientNTMultiGet_SRCS += examplePvaClientNTMultiGet.cpp
