@@ -7,6 +7,13 @@ include $(TOP)/configure/CONFIG
 #EPICS_BASE_PVA_CORE_LIBS = pvaClient pvAccess pva2ca pvData ca Com
 EPICS_BASE_PVA_CORE_LIBS = pvaClient pvAccess pvAccessCA nt pvData ca Com
 
+PROD_HOST += shortestPutGetDouble
+shortestPutGetDouble_SRCS += shortestPutGetDouble.cpp
+shortestPutGetDouble_LIBS += $(EPICS_BASE_PVA_CORE_LIBS)
+
+PROD_HOST += shortestPutGetDoubleArray
+shortestPutGetDoubleArray_SRCS += shortestPutGetDoubleArray.cpp
+shortestPutGetDoubleArray_LIBS += $(EPICS_BASE_PVA_CORE_LIBS)
 PROD_HOST += testRequest
 testRequest_SRCS += testRequest.cpp
 testRequest_LIBS += $(EPICS_BASE_PVA_CORE_LIBS)
@@ -42,6 +49,18 @@ testPutStringArray_LIBS += $(EPICS_BASE_PVA_CORE_LIBS)
 PROD_HOST += testGetStringArray
 testGetStringArray_SRCS += testGetStringArray.cpp
 testGetStringArray_LIBS += $(EPICS_BASE_PVA_CORE_LIBS)
+
+PROD_HOST += multiGetMultiProviders
+multiGetMultiProviders_SRCS += multiGetMultiProviders.cpp
+multiGetMultiProviders_LIBS += $(EPICS_BASE_PVA_CORE_LIBS)
+
+PROD_HOST += multiPutMultiProviders
+multiPutMultiProviders_SRCS += multiPutMultiProviders.cpp
+multiPutMultiProviders_LIBS += $(EPICS_BASE_PVA_CORE_LIBS)
+
+PROD_HOST += multiMonitorMultiProviders
+multiMonitorMultiProviders_SRCS += multiMonitorMultiProviders.cpp
+multiMonitorMultiProviders_LIBS += $(EPICS_BASE_PVA_CORE_LIBS)
 
 
 
